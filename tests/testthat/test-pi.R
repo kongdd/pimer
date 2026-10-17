@@ -1,6 +1,9 @@
 make_mock_chat <- function() {
-  rscript <- Sys.which("Rscript")
-  skip_if(!nzchar(rscript), "Rscript is needed for the offline mock")
+  # R CMD check --as-cran deliberately shadows Rscript on PATH to catch
+  # non-portable subprocess launches. Use the interpreter being checked.
+  rscript <- file.path(R.home("bin"),
+                       if (.Platform$OS.type == "windows") "Rscript.exe" else "Rscript")
+  skip_if(!file.exists(rscript), "Rscript is needed for the offline mock")
   mock <- normalizePath(test_path("fixtures", "mock-pi.R"),
                         winslash = "/", mustWork = TRUE)
   # The testthat working directory can differ from the processx child's wd.
