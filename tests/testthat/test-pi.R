@@ -1,25 +1,11 @@
 make_mock_chat <- function() {
-  # R CMD check --as-cran deliberately shadows Rscript on PATH to catch
-  # non-portable subprocess launches. Use the interpreter being checked.
-  rscript <- file.path(R.home("bin"),
-                       if (.Platform$OS.type == "windows") "Rscript.exe" else "Rscript")
-  skip_if(!file.exists(rscript), "Rscript is needed for the offline mock")
-  mock <- normalizePath(test_path("fixtures", "mock-pi.R"),
+  node <- Sys.which("node")
+  skip_if(!nzchar(node), "Node.js is needed for the offline Pi RPC mock")
+  mock <- normalizePath(test_path("fixtures", "mock-pi.js"),
                         winslash = "/", mustWork = TRUE)
-  # R CMD check sets R_TESTS to a startup script relative to the tests/
-  # directory. In a nested Rscript it can execute the wrong file or exit.
-  old_r_tests <- Sys.getenv("R_TESTS", unset = NA_character_)
-  Sys.setenv(R_TESTS = "")
-  on.exit({
-    if (is.na(old_r_tests)) Sys.unsetenv("R_TESTS")
-    else Sys.setenv(R_TESTS = old_r_tests)
-  }, add = TRUE)
-  # The testthat working directory can differ from the processx child's wd.
-  chat <- pimer:::PiChat$new(executable = unname(rscript),
-                            args = c("--vanilla", mock),
+  chat <- pimer:::PiChat$new(executable = unname(node), args = mock,
                             wd = dirname(mock), echo = FALSE,
                             timeout = 15, prompt_file = NULL)
-  # A round-trip ensures the mock has started before the tests use it.
   tryCatch(chat$get_state(), error = function(e) {
     chat$close()
     stop(conditionMessage(e), call. = FALSE)
