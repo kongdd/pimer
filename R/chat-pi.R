@@ -22,6 +22,7 @@
 #'   `$stream()`, `$clear()`, `$get_tokens()`, `$get_cost()`, `$get_stats()`,
 #'   `$get_messages()`, `$set_model()`, `$get_model()`, `$get_commands()`,
 #'   `$rpc()`, and `$close()` methods.
+#' @importFrom processx process
 #' @export
 chat_pi <- function(model = NULL, provider = NULL, system_prompt = NULL,
                     tools = NULL, cwd = getwd(), persist = FALSE,
@@ -320,7 +321,14 @@ PiChat <- R6::R6Class("PiChat",
       }
     },
     request = function(type, args = list()) {
-      if (is.null(private$proc) || !private$proc$is_alive()) stop("Pi RPC process is not running.")
+      if (is.null(private$proc)) stop("Pi RPC process is closed.", call. = FALSE)
+      if (!private$proc$is_alive()) {
+        private$pump(0L)
+        detail <- paste(tail(private$errors, 8L), collapse = "\n")
+        stop("Pi RPC process is not running.",
+             if (nzchar(detail)) paste0("\nChild stderr:\n", detail) else "",
+             call. = FALSE)
+      }
       private$counter <- private$counter + 1L
       id <- paste0("pimer-", private$counter)
       body <- c(list(id = id, type = type), args)

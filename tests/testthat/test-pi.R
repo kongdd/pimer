@@ -1,9 +1,19 @@
 make_mock_chat <- function() {
   rscript <- Sys.which("Rscript")
   skip_if(!nzchar(rscript), "Rscript is needed for the offline mock")
-  mock <- test_path("fixtures", "mock-pi.R")
-  pimer:::PiChat$new(executable = unname(rscript), args = c("--vanilla", mock),
-                     wd = getwd(), echo = FALSE, timeout = 5, prompt_file = NULL)
+  mock <- normalizePath(test_path("fixtures", "mock-pi.R"),
+                        winslash = "/", mustWork = TRUE)
+  # The testthat working directory can differ from the processx child's wd.
+  chat <- pimer:::PiChat$new(executable = unname(rscript),
+                            args = c("--vanilla", mock),
+                            wd = dirname(mock), echo = FALSE,
+                            timeout = 15, prompt_file = NULL)
+  # A round-trip ensures the mock has started before the tests use it.
+  tryCatch(chat$get_state(), error = function(e) {
+    chat$close()
+    stop(conditionMessage(e), call. = FALSE)
+  })
+  chat
 }
 
 test_that("Pi RPC chat is stateful, streams deltas, and accounts tokens", {
